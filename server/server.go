@@ -21,7 +21,7 @@ import (
 	// Allow dynamic profiling.
 	_ "net/http/pprof"
 
-	"github.com/nats-io/gnatsd/util"
+	"github.com/nats-io/nats-server/util"
 )
 
 // Info is the information sent to clients to help them understand information

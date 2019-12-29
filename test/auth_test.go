@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/gnatsd/server"
+	"github.com/nats-io/nats-server/server"
 )
 
 func doAuthConnect(t tLogger, c net.Conn, token, user, pass string) {

@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nats-io/gnatsd/conf"
-	"github.com/nats-io/gnatsd/util"
+	"github.com/nats-io/nats-server/conf"
+	"github.com/nats-io/nats-server/util"
 )
 
 // Options for clusters.

@@ -47,7 +47,7 @@ type Sublist struct {
 	removes   uint64
 	cache     map[string]*SublistResult
 	root      *level
-	count     uint32
+	count     uint32 //所有订阅的个数
 }
 
 // A node contains subscriptions and a pointer to the next level.
@@ -79,7 +79,7 @@ func newLevel() *level {
 func NewSublist() *Sublist {
 	return &Sublist{root: newLevel(), cache: make(map[string]*SublistResult)}
 }
-
+//sub的唯一标识实际上就是sub的地址,remove的时候是按照地址查找的,当然是先根据subject找到
 // Insert adds a subscription into the sublist
 func (s *Sublist) Insert(sub *subscription) error {
 	// copy the subject since we hold this and this might be part of a large byte slice.

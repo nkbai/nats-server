@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/nats-io/gnatsd/server"
+	"github.com/nats-io/nats-server/server"
 )
 
 func TestResolveRandomPort(t *testing.T) {

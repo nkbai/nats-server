@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/nats-io/gnatsd/logger"
+	"github.com/nats-io/nats-server/logger"
 )
 
 // Logger interface of the NATS Server

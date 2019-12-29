@@ -151,6 +151,7 @@ func TestSublistRemove(t *testing.T) {
 	verifyCount(s, 1, t)
 	r := s.Match(subject)
 	verifyLen(r.psubs, 1, t)
+	verifyCount(s, 1, t)
 	s.Remove(newSub("a.b.c"))
 	verifyCount(s, 1, t)
 	s.Remove(sub)

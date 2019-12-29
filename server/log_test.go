@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nats-io/gnatsd/logger"
+	"github.com/nats-io/nats-server/logger"
 )
 
 func TestSetLogger(t *testing.T) {
