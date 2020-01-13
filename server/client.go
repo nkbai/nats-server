@@ -28,7 +28,7 @@ const (
 	ClientProtoZero = iota
 	// This signals a client can receive more then the original INFO block.
 	// This can be used to update clients on other cluster members, etc.
-	ClientProtoInfo
+	ClientProtoInfo //不考虑支持老版本协议，只支持最新版本
 )
 
 func init() {
@@ -106,7 +106,7 @@ type client struct {
 	ptmr  *time.Timer
 	pout  int
 	wfc   int
-	msgb  [msgScratchSize]byte
+	msgb  [msgScratchSize]byte //msg header 缓冲区
 	last  time.Time
 	parseState
 
@@ -169,6 +169,11 @@ type subscription struct {
 
 type clientOpts struct {
 	Verbose       bool   `json:"verbose"`
+	/*
+	adj. 卖弄学问的
+	学究式的,迂腐的
+	就是在client pub message的时候在检查一遍主题，要求必须不包含*>
+	 */
 	Pedantic      bool   `json:"pedantic"`
 	SslRequired   bool   `json:"ssl_required"`
 	Authorization string `json:"auth_token"`
@@ -326,7 +331,7 @@ func (c *client) readLoop() {
 					cp.last = last
 					// Check if we should tune the buffer.
 					sz := cp.bw.Available()
-					// Check for expansion opportunity.
+					// Check for expansion opportunity. 在这个连接上发送消息，但是出现了多次缓冲区大小不足，导致可能会阻塞的情况
 					if wfc > 2 && sz <= maxBufSize/2 {
 						cp.bw = bufio.NewWriterSize(cp.nc, sz*2)
 					}
@@ -467,7 +472,7 @@ func (c *client) processConnect(arg []byte) error {
 			srv.mu.Unlock()
 		}
 
-		// Check for Auth
+		// Check for Auth 不支持认证，就算是客户端认证信息无效，也会通过
 		if ok := srv.checkAuthorization(c); !ok {
 			c.authViolation()
 			return ErrAuthorization
@@ -668,7 +673,7 @@ func (c *client) processMsgArgs(arg []byte) error {
 
 	return nil
 }
-
+//process pub arg
 func (c *client) processPub(arg []byte) error {
 	if c.trace {
 		c.traceInOp("PUB", arg)
@@ -907,7 +912,7 @@ func (c *client) msgHeader(mh []byte, sub *subscription) []byte {
 // Used to treat maps as efficient set
 var needFlush = struct{}{}
 var routeSeen = struct{}{}
-
+//在一个sub上发送一个消息，不直接针对client，是因为sub有一些自己的属性可以控制消息的发送
 func (c *client) deliverMsg(sub *subscription, mh, msg []byte) {
 	if sub.client == nil {
 		return
@@ -916,7 +921,7 @@ func (c *client) deliverMsg(sub *subscription, mh, msg []byte) {
 	client.mu.Lock()
 	sub.nm++
 	// Check if we should auto-unsubscribe.
-	if sub.max > 0 {
+	if sub.max > 0 { //有lock保护，所以就算是有其他client触发了unsub，那么也没有问题呢，不会出现重复unsub问题
 		// For routing..
 		shouldForward := client.typ != ROUTER && client.srv != nil
 		// If we are at the exact number, unsubscribe but
@@ -930,7 +935,7 @@ func (c *client) deliverMsg(sub *subscription, mh, msg []byte) {
 				defer client.srv.broadcastUnSubscribe(sub)
 			}
 			defer client.unsubscribe(sub)
-		} else if sub.nm > sub.max {
+		} else if sub.nm > sub.max { //什么时候会出现大于max，而跳过了等于呢
 			c.Debugf("Auto-unsubscribe limit [%d] exceeded\n", sub.max)
 			client.mu.Unlock()
 			client.unsubscribe(sub)
@@ -940,7 +945,7 @@ func (c *client) deliverMsg(sub *subscription, mh, msg []byte) {
 			return
 		}
 	}
-
+	//锁着呢，只有close的时候会设置会设置为nil，也就是说执行deliverMsg，nc已经关闭了，为什么呢？
 	if client.nc == nil {
 		client.mu.Unlock()
 		return
@@ -975,13 +980,13 @@ func (c *client) deliverMsg(sub *subscription, mh, msg []byte) {
 	if err != nil {
 		goto writeErr
 	}
-
+	//不存在缓冲区不足的问题，bw会先写出去，然后再填充缓冲区
 	_, err = client.bw.Write(msg)
 	if err != nil {
 		goto writeErr
 	}
 
-	if c.trace {
+	if c.trace { //因为链接A设置了打印out操作，连接B就输出？ 很奇怪
 		client.traceOutOp(string(mh[:len(mh)-LEN_CR_LF]), nil)
 	}
 
@@ -1010,6 +1015,7 @@ writeErr:
 }
 
 // processMsg is called to process an inbound msg from a client.
+//这是最核心的函数， 功能最多，考虑route，queue以及普通的sub server是不会收到msg消息的，只会收到pub消息
 func (c *client) processMsg(msg []byte) {
 	// Snapshot server.
 	srv := c.srv
@@ -1087,7 +1093,8 @@ func (c *client) processMsg(msg []byte) {
 		c.cache.results = make(map[string]*SublistResult)
 		c.cache.genid = genid
 	}
-
+		//这个cache为什么不是全局的，只是针对每个pub client呢？
+		//这样岂不是如果同一主题，有多个人同时pub，这个cache会有多份？
 	if !ok {
 		subject := string(c.pa.subject)
 		r = srv.sl.Match(subject)
@@ -1128,7 +1135,7 @@ func (c *client) processMsg(msg []byte) {
 	// If we are a route and we have a queue subscription, deliver direct
 	// since they are sent direct via L2 semantics. If the match is a queue
 	// subscription, we will return from here regardless if we find a sub.
-	if isRoute {
+	if isRoute { //route 处理的带sid：cid这种消息，是什么意思呢？ 转发给指定的client的？
 		if sub, ok := srv.routeSidQueueSubscriber(c.pa.sid); ok {
 			if sub != nil {
 				mh := c.msgHeader(msgh[:si], sub)
@@ -1201,7 +1208,7 @@ func (c *client) pubPermissionViolation(subject []byte) {
 	c.sendErr(fmt.Sprintf("Permissions Violation for Publish to %q", subject))
 	c.Errorf("Publish Violation - User %q, Subject %q", c.opts.Username, subject)
 }
-
+//一个连接长时间没有接收到任何消息，直接关掉
 func (c *client) processPingTimer() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -1214,7 +1221,7 @@ func (c *client) processPingTimer() {
 	c.Debugf("%s Ping Timer", c.typeString())
 
 	// Check for violation
-	c.pout++
+	c.pout++ //收到pong的时候会设置为0
 	if c.pout > c.srv.getOpts().MaxPingsOut {
 		c.Debugf("Stale Client Connection - Closing")
 		c.sendProto([]byte(fmt.Sprintf("-ERR '%s'\r\n", "Stale Connection")), true)

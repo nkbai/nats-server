@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/labstack/gommon/log"
 	"runtime"
 	"strings"
 	"sync"
@@ -430,6 +431,7 @@ var results = make([]*subscription, 0, 64)
 func init() {
 	subs = make([]*subscription, 0, 256*1024)
 	subsInit("")
+	log.Errorf("subs len=%d",len(subs));
 	for i := 0; i < len(subs); i++ {
 		sl.Insert(subs[i])
 	}

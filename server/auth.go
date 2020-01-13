@@ -91,7 +91,7 @@ func (s *Server) checkAuthorization(c *client) bool {
 		return false
 	}
 }
-
+//todo 第一版本也不考虑支持用户认证。
 // isClientAuthorized will check the client against the proper authorization method and data.
 // This could be token or username/password based.
 func (s *Server) isClientAuthorized(c *client) bool {

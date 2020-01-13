@@ -33,7 +33,7 @@ type route struct {
 	remoteID     string
 	didSolicit   bool
 	retry        bool
-	routeType    RouteType
+	routeType    RouteType //是否通过配置文件明确配置，进行的连接
 	url          *url.URL
 	authRequired bool
 	tlsRequired  bool
@@ -297,6 +297,7 @@ func (s *Server) sendLocalSubsToRoute(route *client) {
 		client.mu.Unlock()
 		for _, sub := range subs {
 			rsid := routeSid(sub)
+			//我这个服务器上的哪个客户端
 			proto := fmt.Sprintf(subProto, sub.subject, sub.queue, rsid)
 			b.WriteString(proto)
 		}
@@ -456,7 +457,7 @@ const (
 
 	QRSID_LEN = len(QRSID)
 )
-
+//这是什么意思呢？sub？
 func (s *Server) routeSidQueueSubscriber(rsid []byte) (*subscription, bool) {
 	cid, sid, ok := parseRouteSid(rsid)
 	if !ok {
